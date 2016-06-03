@@ -23,6 +23,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -200,6 +201,23 @@ public class SqlExecMojo
     @Parameter( defaultValue = "${session}", readonly = true, required = true )
     private MavenSession mavenSession;
 
+    /**
+     * TODO
+     *
+     * @since 3.0.1
+     */
+    @Parameter( property = "outputFileExtension" )
+    private String outputFileExtension;
+
+    /**
+     * TODO
+     *
+     * @since 3.0.1
+     */
+    @Parameter( property = "outputFilePath" )
+    private String outputFilePath;
+
+    
     //////////////////////////////// Source info /////////////////////////////
 
     /**
@@ -683,15 +701,17 @@ public class SqlExecMojo
             {
                 if ( outputFile != null )
                 {
-                    getLog().debug( "Opening PrintStream to output file " + outputFile );
-                    outputFile.getParentFile().mkdirs();
-                    out = new PrintStream( new BufferedOutputStream( new FileOutputStream( outputFile.getAbsolutePath(),
-                                                                                           append ) ) );
+                    out = openFileStream(outputFile);
                 }
 
                 // Process all transactions
                 for ( Transaction t : transactions )
                 {
+                    if ( outputFilePath != null && outputFileExtension != null )
+                    {
+                        out = openFileStream(new File(getOutputFile(t)));
+                    }
+                    
                     t.runTransaction( out );
 
                     if ( !autocommit )
@@ -754,6 +774,28 @@ public class SqlExecMojo
         {
             throw new MojoExecutionException( "Some SQL statements failed to execute" );
         }
+    }
+
+    private String getOutputFile(Transaction t) {
+        String targetFileName = t.tSrcFile.getName();
+        if (targetFileName.endsWith(".sql")) {
+            targetFileName = targetFileName.substring(0, targetFileName.lastIndexOf(".sql"));
+        }
+        
+        String transactionOutputFilePath = outputFilePath; 
+        
+        if (!outputFilePath.endsWith(File.separator)) {
+            transactionOutputFilePath += File.separator;
+        }
+                
+        transactionOutputFilePath += targetFileName + "." + outputFileExtension;
+        return transactionOutputFilePath;
+    }
+
+    private PrintStream openFileStream(File file) throws FileNotFoundException {
+        getLog().debug( "Opening PrintStream to output file " + file );
+        file.getParentFile().mkdirs();
+        return new PrintStream( new BufferedOutputStream( new FileOutputStream( file.getAbsolutePath(), append)));
     }
 
     /**
