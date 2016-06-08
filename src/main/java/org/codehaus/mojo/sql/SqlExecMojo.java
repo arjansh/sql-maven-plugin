@@ -719,6 +719,11 @@ public class SqlExecMojo
                         getLog().debug( "Committing transaction" );
                         conn.commit();
                     }
+
+                    if ( outputFilePath != null && outputFileExtension != null )
+                    {
+                        out.close();
+                    }
                 }
             }
             finally
